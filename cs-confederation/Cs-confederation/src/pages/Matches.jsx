@@ -67,8 +67,8 @@ const MatchesPage = () => {
   });
 
   const handleTierSelect = (tierName) => {
-    console.log('Selecting tier:', tierName);
-    setSelectedTier(tierName);
+    // If clicking the currently selected tier, deselect it
+    setSelectedTier(prevTier => prevTier === tierName ? null : tierName);
   };
 
   // Filter out Unrated tier and sort matches by date
@@ -87,8 +87,8 @@ const MatchesPage = () => {
           <div
             role="button"
             tabIndex={0}
-            onClick={() => handleTierSelect(null)}
-            onKeyDown={(e) => e.key === 'Enter' && handleTierSelect(null)}
+            onClick={() => setSelectedTier(null)}
+            onKeyDown={(e) => e.key === 'Enter' && setSelectedTier(null)}
             className={`px-4 py-2 rounded-lg transition-all duration-300 cursor-pointer ${
               selectedTier === null 
                 ? 'bg-gray-200 text-gray-800' 
@@ -108,13 +108,13 @@ const MatchesPage = () => {
               className={`px-4 py-2 rounded-lg transition-all duration-300 cursor-pointer ${
                 selectedTier === tier.name
                   ? 'text-white'
-                  : 'text-gray-200 hover:bg-opacity-80'
+                  : 'text-gray-300 hover:bg-gray-700'
               }`}
               style={{
-                backgroundColor: tier.name === selectedTier 
+                backgroundColor: selectedTier === tier.name 
                   ? tier.color 
-                  : `${tier.color}44`,
-                border: `1px solid ${tier.color}`
+                  : '#1f2937', // Darker gray background when not selected
+                border: `1px solid ${selectedTier === tier.name ? tier.color : '#4b5563'}`
               }}
             >
               {tier.name}
@@ -127,35 +127,42 @@ const MatchesPage = () => {
           {sortedMatches.map((match) => (
             <div 
               key={match.id}
-              className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col"
             >
-              <div className="bg-gray-700 p-3">
-                <h3 className="text-white text-center font-bold">
+              {/* Header */}
+              <div className="bg-gray-700 p-4">
+                <h3 className="text-white text-center font-bold text-lg">
                   {selectedTier && `${selectedTier} • `}
                   <span className="text-blue-300">{match.home.name}</span> vs <span className="text-red-300">{match.away.name}</span>
-                  {match.matchDay?.number && ` • ${match.matchDay.number}`}
+                  {match.matchDay?.number && ` • MD ${match.matchDay.number}`}
                 </h3>
               </div>
 
-              <div className="flex h-48">
-                <div className="w-1/2 p-4 bg-gradient-to-r from-gray-800 to-gray-700 flex items-center justify-center">
-                  <img 
-                    src={`https://core.csconfederation.com${match.home.franchise.logo?.url}`}
-                    alt={`${match.home.franchise.name} logo`}
-                    className="max-h-32 object-contain"
-                  />
+              {/* Logos */}
+              <div className="flex-1 flex min-h-[200px] bg-gray-800">
+                <div className="w-1/2 p-6 bg-gradient-to-r from-gray-800 to-gray-700 flex items-center justify-center border-r border-gray-700">
+                  <div className="w-32 h-32 flex items-center justify-center">
+                    <img 
+                      src={`https://core.csconfederation.com${match.home.franchise.logo?.url}`}
+                      alt={`${match.home.franchise.name} logo`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
                 </div>
                 
-                <div className="w-1/2 p-4 bg-gradient-to-l from-gray-800 to-gray-700 flex items-center justify-center">
-                  <img 
-                    src={`https://core.csconfederation.com${match.away.franchise.logo?.url}`}
-                    alt={`${match.away.franchise.name} logo`}
-                    className="max-h-32 object-contain"
-                  />
+                <div className="w-1/2 p-6 bg-gradient-to-l from-gray-800 to-gray-700 flex items-center justify-center">
+                  <div className="w-32 h-32 flex items-center justify-center">
+                    <img 
+                      src={`https://core.csconfederation.com${match.away.franchise.logo?.url}`}
+                      alt={`${match.away.franchise.name} logo`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-gray-700 p-2 text-center text-gray-300">
+              {/* Footer */}
+              <div className="bg-gray-700 p-4 text-center text-gray-300">
                 {new Date(match.scheduledDate).toLocaleString()}
               </div>
             </div>
