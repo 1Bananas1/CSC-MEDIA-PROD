@@ -127,14 +127,15 @@ const MatchesPage = () => {
           {sortedMatches.map((match) => (
             <div 
               key={match.id}
-              className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col"
+              className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer"
+              onClick={() => window.location.href = `/matches/${match.id}`}
             >
               {/* Header */}
               <div className="bg-gray-700 p-4">
                 <h3 className="text-white text-center font-bold text-lg">
                   {selectedTier && `${selectedTier} • `}
                   <span className="text-blue-300">{match.home.name}</span> vs <span className="text-red-300">{match.away.name}</span>
-                  {match.matchDay?.number && ` • MD ${match.matchDay.number}`}
+                  {match.matchDay?.number && ` • MD${match.matchDay.number}`}
                 </h3>
               </div>
 

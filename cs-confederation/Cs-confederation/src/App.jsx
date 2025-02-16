@@ -5,6 +5,7 @@ import Navbar from './components/Navbar'
 import { gql, useQuery } from '@apollo/client'
 import FranchiseCards from './components/FranchiseCards'
 import Matches from './pages/Matches'
+import MatchDetail from './pages/MatchDetail'
 
 const GET_LATEST_SEASON = gql`
   query {
@@ -48,6 +49,7 @@ const App = () => {
             </div>
           } />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/matches/:matchId" element={<MatchDetail />} />
         </Routes>
       </main>
     </Router>
