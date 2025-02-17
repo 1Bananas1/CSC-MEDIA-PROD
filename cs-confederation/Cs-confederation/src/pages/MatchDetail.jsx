@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import MatchStats from '../components/MatchStats';
 
 const MatchDetail = () => {
   const { matchId } = useParams();
@@ -20,7 +21,6 @@ const MatchDetail = () => {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              {/* Team logos and names would go here */}
               <h2 className="text-2xl font-bold">Match Details</h2>
             </div>
             <div className="text-xl font-bold">
@@ -34,7 +34,6 @@ const MatchDetail = () => {
       <div className="w-full bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex space-x-1">
-            {/* Regular tabs */}
             {tabs.map((tab) => (
               <button
                 key={tab}
@@ -72,7 +71,10 @@ const MatchDetail = () => {
       {/* Content Section */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         {activeTab === 'HEAD TO HEAD' && (
-          <div>Head to Head Content</div>
+          <div>
+            <MatchStats matchId={matchId} />
+            {/* Future stats tables will go here */}
+          </div>
         )}
         {activeTab === 'HOME STATS' && (
           <div>Home Stats Content</div>
