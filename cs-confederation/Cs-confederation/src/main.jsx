@@ -1,4 +1,4 @@
-import { ApolloClient, InMemoryCache, ApolloProvider, HttpLink, split } from '@apollo/client';
+import { ApolloClient, InMemoryCache, ApolloProvider, HttpLink, split, ApolloLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { getMainDefinition } from '@apollo/client/utilities';
@@ -9,7 +9,6 @@ import './index.css';
 
 // One-time authentication function
 async function authenticate() {
-  // Check if we already have a valid token
   const existingToken = localStorage.getItem('auth_token');
   if (existingToken) {
     return;
@@ -53,10 +52,9 @@ async function authenticate() {
   }
 }
 
-// Create the auth link for stats API
+// Auth link setup
 const authLink = setContext((_, { headers }) => {
   const token = localStorage.getItem('auth_token');
-  
   return {
     headers: {
       ...headers,
@@ -65,24 +63,13 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
-// Create links for both APIs
-const coreLink = new HttpLink({ 
-  uri: 'https://core.csconfederation.com/graphql' 
-});
-
-const statsLink = authLink.concat(new HttpLink({ 
-  uri: 'https://stats.csconfederation.com/graphql' 
-}));
-
-// Error handling link to catch token expiration
+// Error handling link
 const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
   if (graphQLErrors) {
     for (let err of graphQLErrors) {
-      // If we get a token expiration error, clear the token and re-authenticate
       if (err.message.includes('token') || err.message.includes('permission')) {
         localStorage.removeItem('auth_token');
         authenticate().then(() => {
-          // Retry the failed request
           const token = localStorage.getItem('auth_token');
           if (token) {
             operation.setContext({
@@ -99,24 +86,40 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
   }
 });
 
-// Split requests between APIs
+// Create links for both APIs
+const coreLink = new HttpLink({ 
+  uri: 'https://core.csconfederation.com/graphql' 
+});
+
+const statsLink = new HttpLink({ 
+  uri: 'https://stats.csconfederation.com/graphql' 
+});
+
+// Create the split link
 const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
-    if (definition.kind === 'OperationDefinition') {
-      const operationName = definition.name?.value || '';
-      return operationName.includes('Matches') || operationName.includes('Tiers');
-    }
-    return false;
+    return (
+      definition.kind === 'OperationDefinition' &&
+      definition.operation === 'query' &&
+      definition.name?.value?.includes('PlayerStats')
+    );
   },
-  statsLink,
-  coreLink
+  statsLink,  // If the above returns true, use stats API
+  coreLink    // Otherwise use core API
 );
+
+// Combine all links
+const link = ApolloLink.from([
+  errorLink,
+  authLink,
+  splitLink
+]);
 
 // Create Apollo Client
 const client = new ApolloClient({
-  link: errorLink.concat(splitLink),
-  cache: new InMemoryCache(),
+  link,
+  cache: new InMemoryCache()
 });
 
 // Initial authentication and render

@@ -23,6 +23,7 @@ const GET_MATCH_DETAILS = gql`
           tier {
             name
           }
+          steam64Id
         }
       }
       away {
@@ -42,26 +43,125 @@ const GET_MATCH_DETAILS = gql`
           tier {
             name
           }
+          steam64Id
         }
       }
     }
   }
 `;
 
+const GET_LATEST_SEASON = gql`
+  query {
+    latestActiveSeason {
+      number
+    }
+  }
+`;
 
-const PlayerList = ({ players }) => {
-  // Filter for relevant player types
+const GET_PLAYER_STATS = gql`
+  query PlayerStats($season: Int, $steamId: String!) {
+    playerSummary(season: $season, steamId: $steamId) {
+      name
+      adr
+      utilDmg
+      tRating
+      rating
+      kast
+      impact
+      gameCount
+      ef
+      ctRating
+    }
+  }
+`;
+
+const StatCell = ({ value, isPercentage = false }) => {
+  if (value === undefined || value === null) return <td className="py-2">-</td>;
+  
+  const displayValue = isPercentage 
+    ? `${(value * 100).toFixed(1)}%`
+    : typeof value === 'number' 
+      ? value.toFixed(2)
+      : value;
+
+  return <td className="py-2 px-4 text-center">{displayValue}</td>;
+};
+
+const PlayerStats = ({ steamId, season }) => {
+  const { data, loading, error } = useQuery(GET_PLAYER_STATS, {
+    variables: { 
+      steamId,
+      season
+    },
+    skip: !steamId || !season,
+    context: {
+      clientName: 'stats',  // Re-adding this to ensure we use the stats API
+      headers: {
+        'Authorization': `JWT ${localStorage.getItem('auth_token')}`
+      }
+    }
+  });
+  
+  console.log('Player Stats Query:', { 
+    steamId, 
+    season, 
+    data,
+    loading,
+    error: error ? error.message : null,
+    token: localStorage.getItem('auth_token')
+  });
+
+  if (loading) return (
+    <>
+      {[...Array(8)].map((_, i) => (
+        <td key={`loading-${i}`} className="py-2 px-4 text-center">...</td>
+      ))}
+    </>
+  );
+  
+  if (error) return (
+    <>
+      {[...Array(8)].map((_, i) => (
+        <td key={`error-${i}`} className="py-2 px-4 text-center text-red-500">!</td>
+      ))}
+    </>
+  );
+
+  const stats = data?.playerSummary || {};
+
+  return (
+    <>
+      <StatCell value={stats.gameCount} index="games" />
+      <StatCell value={stats.adr} index="adr" />
+      <StatCell value={stats.rating} index="rating" />
+      <StatCell value={stats.ctRating} index="ctRating" />
+      <StatCell value={stats.tRating} index="tRating" />
+      <StatCell value={stats.impact} index="impact" />
+      <StatCell value={stats.kast} isPercentage={true} index="kast" />
+      <StatCell value={stats.ef} isPercentage={false} index="ef" />
+    </>
+  );
+};
+
+const PlayerList = ({ players, season }) => {
   const relevantPlayers = players?.filter(player => 
     ["SIGNED", "PERMFA_TEMP_SIGNED", "FA_TEMP_SIGNED", "SIGNED_SUBBED"].includes(player.type)
   );
 
   return (
-    <div className="w-full">
-      <table className="w-full">
+    <div className="w-full overflow-x-auto">
+      <table className="w-full min-w-max">
         <thead>
           <tr className="text-gray-400 text-sm border-b border-gray-700">
-            <th className="text-left py-2">Player</th>
-            <th className="text-left py-2">Tier</th>
+            <th className="text-left py-2 px-4 w-64">Player</th>
+            <th className="text-center py-2 px-4 w-24">Games</th>
+            <th className="text-center py-2 px-4 w-24">ADR</th>
+            <th className="text-center py-2 px-4 w-24">Rating</th>
+            <th className="text-center py-2 px-4 w-24">CT Rating</th>
+            <th className="text-center py-2 px-4 w-24">T Rating</th>
+            <th className="text-center py-2 px-4 w-24">Impact</th>
+            <th className="text-center py-2 px-4 w-24">KAST</th>
+            <th className="text-center py-2 px-4 w-24">EF</th>
           </tr>
         </thead>
         <tbody>
@@ -72,17 +172,19 @@ const PlayerList = ({ players }) => {
                 player.type === "SIGNED_SUBBED" ? "text-gray-500" : "text-white"
               }`}
             >
-              <td className="py-2 flex items-center space-x-2">
-                {player.avatarUrl && (
-                  <img 
-                    src={player.avatarUrl} 
-                    alt={`${player.name}'s avatar`}
-                    className="w-8 h-8 rounded-full"
-                  />
-                )}
-                <span>{player.name}</span>
+              <td className="py-2 px-2">
+                <div className="flex items-center space-x-2">
+                  {player.avatarUrl && (
+                    <img 
+                      src={player.avatarUrl} 
+                      alt={`${player.name}'s avatar`}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  )}
+                  <span>{player.name}</span>
+                </div>
               </td>
-              <td className="py-2">{player.tier?.name || '-'}</td>
+              <PlayerStats steamId={player.steam64Id} season={season} />
             </tr>
           ))}
         </tbody>
@@ -92,8 +194,8 @@ const PlayerList = ({ players }) => {
 };
 
 const MatchStats = ({ matchId }) => {
-  
-  const { loading, error, data } = useQuery(GET_MATCH_DETAILS, {
+  // Get match details
+  const { loading: matchLoading, error: matchError, data: matchData } = useQuery(GET_MATCH_DETAILS, {
     variables: { matchId },
     context: {
       headers: {
@@ -102,22 +204,41 @@ const MatchStats = ({ matchId }) => {
     }
   });
 
-  if (loading) return (
-    <div className="w-full h-32 flex items-center justify-center">
-      <p className="text-xl text-gray-400">Loading match details...</p>
-    </div>
-  );
+  // Get current season
+  const { data: seasonData, loading: seasonLoading, error: seasonError } = useQuery(GET_LATEST_SEASON, {
+    context: {
+      headers: {
+        'Authorization': `JWT ${localStorage.getItem('auth_token')}`
+      }
+    }
+  });
 
-  if (error) {
-    console.error('Match stats error:', error);
+  console.log('Season Query:', {
+    data: seasonData,
+    loading: seasonLoading,
+    error: seasonError ? seasonError.message : null,
+    token: localStorage.getItem('auth_token')
+  });
+
+  if (matchLoading) {
     return (
-      <div className="w-full p-4 bg-red-500/10 text-red-500 rounded">
-        Error loading match details: {error.message}
+      <div className="w-full h-32 flex items-center justify-center">
+        <p className="text-xl text-gray-400">Loading match details...</p>
       </div>
     );
   }
 
-  const { match } = data;
+  if (matchError) {
+    console.error('Match stats error:', matchError);
+    return (
+      <div className="w-full p-4 bg-red-500/10 text-red-500 rounded">
+        Error loading match details: {matchError.message}
+      </div>
+    );
+  }
+
+  const { match } = matchData;
+  const currentSeason = seasonData?.latestActiveSeason?.number;
 
   return (
     <div className="w-full bg-gray-800 text-white">
@@ -148,17 +269,17 @@ const MatchStats = ({ matchId }) => {
         </div>
 
         {/* Player Lists */}
-        <div className="grid grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {/* Home Team Players */}
           <div>
             <h3 className="text-xl font-bold mb-4">Home Roster</h3>
-            <PlayerList players={match.home.players} />
+            <PlayerList players={match.home.players} season={currentSeason} />
           </div>
 
           {/* Away Team Players */}
-          <div>
+          <div className="mt-8">
             <h3 className="text-xl font-bold mb-4">Away Roster</h3>
-            <PlayerList players={match.away.players} />
+            <PlayerList players={match.away.players} season={currentSeason} />
           </div>
         </div>
       </div>
