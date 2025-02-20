@@ -14,6 +14,11 @@ const GET_MATCH_DETAILS = gql`
             url
           }
         }
+        stats {
+          kills
+          deaths
+          assists
+        }
       }
       away {
         name
@@ -22,6 +27,11 @@ const GET_MATCH_DETAILS = gql`
           logo {
             url
           }
+        }
+        stats {
+          kills
+          deaths
+          assists
         }
       }
     }
@@ -39,11 +49,14 @@ const MatchStats = ({ matchId }) => {
     </div>
   );
 
-  if (error) return (
-    <div className="w-full p-4 bg-red-500/10 text-red-500 rounded">
-      Error loading match details: {error.message}
-    </div>
-  );
+  if (error) {
+    console.error('Match stats error:', error);
+    return (
+      <div className="w-full p-4 bg-red-500/10 text-red-500 rounded">
+        Error loading match details: {error.message}
+      </div>
+    );
+  }
 
   const { match } = data;
 
@@ -60,6 +73,11 @@ const MatchStats = ({ matchId }) => {
             />
             <div>
               <h2 className="text-2xl font-bold">{match.home.name}</h2>
+              {match.home.stats && (
+                <div className="text-sm text-gray-300">
+                  K/D/A: {match.home.stats.kills}/{match.home.stats.deaths}/{match.home.stats.assists}
+                </div>
+              )}
             </div>
           </div>
 
@@ -70,6 +88,11 @@ const MatchStats = ({ matchId }) => {
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <h2 className="text-2xl font-bold">{match.away.name}</h2>
+              {match.away.stats && (
+                <div className="text-sm text-gray-300">
+                  K/D/A: {match.away.stats.kills}/{match.away.stats.deaths}/{match.away.stats.assists}
+                </div>
+              )}
             </div>
             <img 
               src={`https://core.csconfederation.com${match.away.franchise.logo.url}`}
