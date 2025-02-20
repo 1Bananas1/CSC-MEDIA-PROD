@@ -95,20 +95,11 @@ const PlayerStats = ({ steamId, season }) => {
     },
     skip: !steamId || !season,
     context: {
-      clientName: 'stats',  // Re-adding this to ensure we use the stats API
+      clientName: 'stats',
       headers: {
         'Authorization': `JWT ${localStorage.getItem('auth_token')}`
       }
     }
-  });
-  
-  console.log('Player Stats Query:', { 
-    steamId, 
-    season, 
-    data,
-    loading,
-    error: error ? error.message : null,
-    token: localStorage.getItem('auth_token')
   });
 
   if (loading) return (
@@ -213,12 +204,7 @@ const MatchStats = ({ matchId }) => {
     }
   });
 
-  console.log('Season Query:', {
-    data: seasonData,
-    loading: seasonLoading,
-    error: seasonError ? seasonError.message : null,
-    token: localStorage.getItem('auth_token')
-  });
+
 
   if (matchLoading) {
     return (
